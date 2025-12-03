@@ -1,0 +1,26 @@
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Debug files
+sentinel_debug.jsonl
+sentinel_panic.log
+*.backup
+
+# Frontend
+node_modules/
+dist/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+

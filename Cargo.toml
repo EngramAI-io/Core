@@ -1,0 +1,31 @@
+[package]
+name = "sentinel"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "sentinel"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+clap = { version = "4", features = ["derive"] }
+tokio-util = { version = "0.7", features = ["codec", "io"] }
+bytes = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+axum = "0.7"
+tokio-tungstenite = { version = "0.21", features = ["axum"] }
+rust-embed = "8"
+tokio-stream = "0.1"
+mime_guess = "2.0"
+aho-corasick = "1"
+regex = "1"
+dirs = "5"
+lazy_static = "1"
+
+[profile.release]
+lto = "fat"
+opt-level = "z"
+strip = true
+
