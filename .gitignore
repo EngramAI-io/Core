@@ -24,3 +24,6 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
+sentinel_debug.jsonl
+test_mcp.py
+

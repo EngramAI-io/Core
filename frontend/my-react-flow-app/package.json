@@ -12,7 +12,8 @@
   "dependencies": {
     "@xyflow/react": "^12.9.3",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-force-graph": "^1.48.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

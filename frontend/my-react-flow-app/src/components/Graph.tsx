@@ -8,143 +8,234 @@ import {
   useNodesState,
   useEdgesState,
   type NodeTypes,
+  type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import type { McpLog, StreamDirection } from '../types';
+import type { McpLog } from '../types';
 
 interface GraphProps {
   events: McpLog[];
   onNodeClick: (nodeId: string | null) => void;
-  selectedNode: string | null;
+  selectedNode: string | null; // requestId as string
 }
 
-interface CustomNodeData {
+// Use a type (not interface) so it plays nicer with some TS constraints
+type CustomNodeData = {
   label: string;
   method?: string;
   status: 'pending' | 'success' | 'error';
   requestId?: number;
-}
+  selectedId?: string | null;
+};
 
-const nodeTypes: NodeTypes = {
-  agent: ({ data }) => (
+// ------------ Custom node renderers ------------
+
+const AgentNode: React.FC<NodeProps> = (props) => {
+  const data = props.data as CustomNodeData;
+
+  return (
     <div
       style={{
         padding: '10px 20px',
         background: '#6366f1',
         color: 'white',
-        borderRadius: '8px',
+        borderRadius: '999px',
         fontSize: '14px',
         fontWeight: 'bold',
         boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+        border: '2px solid rgba(255,255,255,0.3)',
       }}
     >
       {data.label}
     </div>
-  ),
-  tool: ({ data }) => {
-    const colorMap = {
-      pending: '#eab308',
-      success: '#22c55e',
-      error: '#ef4444',
-    };
-    return (
-      <div
-        style={{
-          padding: '10px 20px',
-          background: colorMap[data.status],
-          color: 'white',
-          borderRadius: '8px',
-          fontSize: '12px',
-          fontWeight: 'bold',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
-          border: data.requestId?.toString() === data.selectedId ? '3px solid white' : 'none',
-        }}
-      >
-        {data.label}
-        {data.method && <div style={{ fontSize: '10px', marginTop: '4px', opacity: 0.9 }}>{data.method}</div>}
-      </div>
-    );
-  },
+  );
+};
+
+const ToolNode: React.FC<NodeProps> = (props) => {
+  const data = props.data as CustomNodeData;
+
+  const colorMap: Record<'pending' | 'success' | 'error', string> = {
+    pending: '#eab308', // yellow
+    success: '#22c55e', // green
+    error: '#ef4444',   // red
+  };
+
+  const status = (data.status ?? 'pending') as keyof typeof colorMap;
+
+  const isSelected =
+    data.requestId !== undefined &&
+    data.selectedId != null &&
+    data.requestId.toString() === data.selectedId;
+
+  return (
+    <div
+      style={{
+        padding: '10px 20px',
+        background: colorMap[status],
+        color: 'white',
+        borderRadius: '999px',
+        fontSize: '12px',
+        fontWeight: 'bold',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+        border: isSelected ? '3px solid white' : 'none',
+        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+        transform: isSelected ? 'scale(1.05)' : 'scale(1)',
+      }}
+    >
+      {data.label}
+      {data.method && (
+        <div style={{ fontSize: '10px', marginTop: '4px', opacity: 0.9 }}>
+          {data.method}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const nodeTypes: NodeTypes = {
+  agent: AgentNode,
+  tool: ToolNode,
 };
 
 export default function Graph({ events, onNodeClick, selectedNode }: GraphProps) {
+  // Use default Node / Edge typing to keep TS happy
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
   useEffect(() => {
     const nodeMap = new Map<string, Node>();
     const edgeMap = new Map<string, Edge>();
-    
-    // Create agent node (central)
-    const agentNode: Node<CustomNodeData> = {
+
+    // ----- Central agent node -----
+    const centerX = 400;
+    const centerY = 300;
+
+    const agentNode: Node = {
       id: 'agent',
       type: 'agent',
-      position: { x: 400, y: 300 },
-      data: { label: 'Agent', status: 'pending' },
+      position: { x: centerX, y: centerY },
+      data: { label: 'Agent', status: 'pending', selectedId: null } as CustomNodeData,
       draggable: false,
     };
     nodeMap.set('agent', agentNode);
 
-    // Process events
+    // ----- Figure out unique tool methods for layout -----
+    const toolMethods = Array.from(
+      new Set(
+        events
+          .filter((e) => e.method && e.request_id !== undefined)
+          .map((e) => e.method as string),
+      ),
+    );
+
+    const radius = 220;
+    const positions = new Map<string, { x: number; y: number }>();
+
+    toolMethods.forEach((method, index) => {
+      const angle = (2 * Math.PI * index) / toolMethods.length;
+      positions.set(method, {
+        x: centerX + radius * Math.cos(angle),
+        y: centerY + radius * Math.sin(angle),
+      });
+    });
+
+    // ----- Build nodes + edges from events -----
     events.forEach((event) => {
-      if (event.method && event.request_id) {
-        const nodeId = `tool-${event.method}`;
-        const requestId = event.request_id.toString();
+      if (!event.method || event.request_id == null) return;
 
-        // Create or update tool node
-        if (!nodeMap.has(nodeId)) {
-          const toolNode: Node<CustomNodeData> = {
-            id: nodeId,
-            type: 'tool',
-            position: {
-              x: 200 + Math.random() * 600,
-              y: 100 + Math.random() * 400,
-            },
-            data: {
-              label: event.method.split('/').pop() || event.method,
-              method: event.method,
-              status: event.direction === StreamDirection.Inbound && event.latency_ms !== undefined
-                ? (event.payload.error ? 'error' : 'success')
-                : 'pending',
-              requestId: event.request_id,
-              selectedId: selectedNode,
-            },
-          };
-          nodeMap.set(nodeId, toolNode);
+      const method = event.method;
+      const nodeId = `tool-${method}`;
+      const requestIdStr = event.request_id.toString();
+
+      // Create tool node if missing
+      if (!nodeMap.has(nodeId)) {
+        const pos = positions.get(method) ?? {
+          x: centerX + (Math.random() - 0.5) * 300,
+          y: centerY + (Math.random() - 0.5) * 200,
+        };
+
+        const isResponse = event.direction === 'Inbound' && event.latency_ms !== undefined;
+        const baseStatus: CustomNodeData['status'] =
+          isResponse && event.payload && (event.payload as any).error
+            ? 'error'
+            : isResponse
+            ? 'success'
+            : 'pending';
+
+        const toolNode: Node = {
+          id: nodeId,
+          type: 'tool',
+          position: pos,
+          data: {
+            label: method.split('/').pop() || method,
+            method,
+            status: baseStatus,
+            requestId: event.request_id,
+            selectedId: selectedNode,
+          } as CustomNodeData,
+        };
+
+        nodeMap.set(nodeId, toolNode);
+      } else {
+        // Update existing node for responses / selection
+        const existing = nodeMap.get(nodeId)!;
+        const data = existing.data as CustomNodeData;
+        let status = data.status;
+
+        const isResponse = event.direction === 'Inbound' && event.latency_ms !== undefined;
+        if (isResponse) {
+          const hasError = event.payload && (event.payload as any).error !== undefined;
+          status = hasError ? 'error' : 'success';
         }
 
-        // Update node status based on response
-        if (event.direction === StreamDirection.Inbound && event.latency_ms !== undefined) {
-          const node = nodeMap.get(nodeId);
-          if (node) {
-            const hasError = event.payload.error !== undefined;
-            const updatedNode: Node<CustomNodeData> = {
-              ...node,
-              data: {
-                ...node.data,
-                status: hasError ? 'error' : 'success',
-                selectedId: selectedNode,
-              },
-            };
-            nodeMap.set(nodeId, updatedNode);
-          }
-        }
+        nodeMap.set(nodeId, {
+          ...existing,
+          data: {
+            ...data,
+            status,
+            requestId: event.request_id,
+            selectedId: selectedNode,
+          } as CustomNodeData,
+        });
+      }
 
-        // Create edge from agent to tool
-        const edgeId = `edge-${requestId}`;
-        if (!edgeMap.has(edgeId)) {
-          const edge: Edge = {
-            id: edgeId,
-            source: 'agent',
-            target: nodeId,
-            animated: event.direction === StreamDirection.Outbound,
-            style: {
-              stroke: event.direction === StreamDirection.Inbound ? '#22c55e' : '#eab308',
-              strokeWidth: 2,
-            },
-          };
-          edgeMap.set(edgeId, edge);
-        }
+      // Edge per requestId: Agent <-> Tool
+      const edgeId = `edge-${requestIdStr}`;
+      const existingEdge = edgeMap.get(edgeId);
+
+      const baseColor =
+        event.direction === 'Inbound' ? '#22c55e' : '#eab308';
+
+      if (!existingEdge) {
+        const edge: Edge = {
+          id: edgeId,
+          source: 'agent',
+          target: nodeId,
+          animated: event.direction === 'Outbound',
+          style: {
+            stroke: baseColor,
+            strokeWidth: 2,
+          },
+          label: `id ${requestIdStr}`,
+        };
+        edgeMap.set(edgeId, edge);
+      } else {
+        // Update edge on response (e.g., change color / stop animation)
+        const updated: Edge = {
+          ...existingEdge,
+          animated:
+            existingEdge.animated &&
+            event.direction === 'Outbound',
+          style: {
+            ...(existingEdge.style || {}),
+            stroke:
+              event.direction === 'Inbound'
+                ? '#22c55e'
+                : (existingEdge.style as any)?.stroke || baseColor,
+            strokeWidth: 2,
+          },
+        };
+        edgeMap.set(edgeId, updated);
       }
     });
 
@@ -155,11 +246,13 @@ export default function Graph({ events, onNodeClick, selectedNode }: GraphProps)
   const onNodeClickHandler = useCallback(
     (_: React.MouseEvent, node: Node) => {
       const data = node.data as CustomNodeData;
-      if (data.requestId) {
+      if (data?.requestId !== undefined) {
         onNodeClick(data.requestId.toString());
+      } else {
+        onNodeClick(null);
       }
     },
-    [onNodeClick]
+    [onNodeClick],
   );
 
   return (
@@ -179,4 +272,3 @@ export default function Graph({ events, onNodeClick, selectedNode }: GraphProps)
     </div>
   );
 }
-
