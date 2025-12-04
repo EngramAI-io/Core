@@ -5,11 +5,6 @@ pub fn install_panic_hook() {
         eprintln!("Sentinel panic occurred:");
         eprintln!("{}", info);
 
-        // Try to restore config backup
-        if let Err(e) = crate::config::restore_backup() {
-            eprintln!("Warning: Failed to restore config backup: {}", e);
-        }
-
         // Log panic to file
         let panic_log = format!(
             "Panic at {:?}\n{:?}\n",
@@ -22,4 +17,3 @@ pub fn install_panic_hook() {
         }
     }));
 }
-

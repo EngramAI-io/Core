@@ -5,8 +5,6 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::mpsc;
 
-const CHANNEL_BUFFER_SIZE: usize = 1000;
-
 pub async fn run_proxy(
     command: Vec<String>,
     tap_sender: mpsc::Sender<(StreamDirection, Bytes)>,
@@ -23,29 +21,36 @@ pub async fn run_proxy(
         .stderr(Stdio::inherit())
         .spawn()?;
 
-    let mut child_stdin = child.stdin.take().ok_or("Failed to open child stdin")?;
-    let mut child_stdout = child.stdout.take().ok_or("Failed to open child stdout")?;
+    // Child stdin (we'll write to this)
+    let mut child_stdin = child
+        .stdin
+        .take()
+        .ok_or("Failed to open child stdin")?;
 
-    // Create reader for child stdout
-    let mut child_stdout_reader = BufReader::new(&mut child_stdout);
+    // Child stdout (we'll read from this)
+    let child_stdout = child
+        .stdout
+        .take()
+        .ok_or("Failed to open child stdout")?;
 
-    // Get parent stdin
+    // Parent stdin/stdout
     let mut parent_stdin = tokio::io::stdin();
     let mut parent_stdout = tokio::io::stdout();
 
-    // Spawn task for proxying stdin -> child_stdin with tap
+    // Task: parent stdin -> child stdin (Outbound) + tap
     let tx_stdin = tap_sender.clone();
     let stdin_handle = tokio::spawn(async move {
         let mut buf = vec![0u8; 8192];
+
         loop {
             match parent_stdin.read(&mut buf).await {
                 Ok(0) => break, // EOF
                 Ok(n) => {
                     let data = Bytes::copy_from_slice(&buf[..n]);
-                    
-                    // Tap: try to send to analysis channel (non-blocking)
+
+                    // Tap (non-blocking)
                     let _ = tx_stdin.try_send((StreamDirection::Outbound, data.clone()));
-                    
+
                     // Forward to child
                     if let Err(e) = child_stdin.write_all(&buf[..n]).await {
                         eprintln!("Error writing to child stdin: {}", e);
@@ -58,27 +63,31 @@ pub async fn run_proxy(
                 }
             }
         }
+
         let _ = child_stdin.shutdown().await;
     });
 
-    // Spawn task for proxying child_stdout -> stdout with tap
+    // Task: child stdout -> parent stdout (Inbound) + tap
     let tx_stdout = tap_sender.clone();
     let stdout_handle = tokio::spawn(async move {
+        let mut child_stdout_reader = BufReader::new(child_stdout);
         let mut buf = vec![0u8; 8192];
+
         loop {
             match child_stdout_reader.read(&mut buf).await {
                 Ok(0) => break, // EOF
                 Ok(n) => {
                     let data = Bytes::copy_from_slice(&buf[..n]);
-                    
-                    // Tap: try to send to analysis channel (non-blocking)
+
+                    // Tap (non-blocking)
                     let _ = tx_stdout.try_send((StreamDirection::Inbound, data.clone()));
-                    
+
                     // Forward to parent stdout
                     if let Err(e) = parent_stdout.write_all(&buf[..n]).await {
                         eprintln!("Error writing to stdout: {}", e);
                         break;
                     }
+
                     let _ = parent_stdout.flush().await;
                 }
                 Err(e) => {
@@ -89,7 +98,7 @@ pub async fn run_proxy(
         }
     });
 
-    // Wait for streams to finish
+    // Wait for both proxy tasks to finish
     let _ = tokio::join!(stdin_handle, stdout_handle);
 
     // Wait for child to exit
@@ -98,4 +107,3 @@ pub async fn run_proxy(
     // Exit with child's exit code
     process::exit(status.code().unwrap_or(1));
 }
-

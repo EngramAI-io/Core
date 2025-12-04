@@ -1,7 +1,7 @@
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser as ClapParser, Subcommand};
 use std::process;
-use tokio::signal;
-use tokio::sync::mpsc;
+use tokio::sync::{broadcast, mpsc};
+use tokio::io::AsyncWriteExt;
 
 mod proxy;
 mod protocol;
@@ -9,17 +9,15 @@ mod events;
 mod parser;
 mod session;
 mod server;
-mod config;
 mod redaction;
 mod panic;
 
 use events::StreamDirection;
-use parser::Parser;
+use parser::Parser as LogParser;
 use proxy::run_proxy;
 use server::start_server;
-use tokio::sync::broadcast;
 
-#[derive(Parser)]
+#[derive(ClapParser)]
 #[command(name = "sentinel")]
 #[command(about = "MCP Interceptor - Transparent proxy for Model Context Protocol")]
 struct Cli {
@@ -31,11 +29,6 @@ struct Cli {
 enum Commands {
     /// Run a command through the proxy
     Run(RunArgs),
-    /// Install sentinel for a Claude Desktop MCP server
-    Install {
-        /// Name of the MCP server to intercept
-        server_name: String,
-    },
 }
 
 #[derive(Args)]
@@ -53,12 +46,6 @@ async fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Install { server_name } => {
-            if let Err(e) = config::install(server_name) {
-                eprintln!("Error: {}", e);
-                process::exit(1);
-            }
-        }
         Commands::Run(args) => {
             if args.command.is_empty() {
                 eprintln!("Error: No command provided after '--'");
@@ -70,7 +57,7 @@ async fn main() {
             let (log_tx, mut log_rx) = mpsc::channel::<events::McpLog>(1000);
             let log_tx_clone = log_tx.clone();
 
-            // Create broadcast channel for WebSocket clients
+            // Broadcast channel for WebSocket clients
             let (ws_tx, _) = broadcast::channel::<events::McpLog>(1000);
 
             // Start HTTP/WebSocket server
@@ -82,7 +69,7 @@ async fn main() {
             });
 
             // Start parser
-            let parser = Parser::new(log_tx);
+            let parser = LogParser::new(log_tx);
             let parser_handle = tokio::spawn(async move {
                 if let Err(e) = parser.process_stream(tap_rx).await {
                     eprintln!("Parser error: {}", e);
@@ -113,6 +100,7 @@ async fn main() {
                             continue;
                         }
                     };
+
                     if let Err(e) = tokio::io::AsyncWriteExt::write_all(
                         &mut file,
                         format!("{}\n", json).as_bytes(),
@@ -121,6 +109,7 @@ async fn main() {
                     {
                         eprintln!("Warning: Failed to write log: {}", e);
                     }
+
                     let _ = file.flush().await;
 
                     // Broadcast to WebSocket clients (ignore errors if no clients)
@@ -128,43 +117,18 @@ async fn main() {
                 }
             });
 
-            // Handle Ctrl+C gracefully
-            let ctrl_c = async {
-                signal::ctrl_c()
-                    .await
-                    .expect("Failed to install Ctrl+C handler");
-            };
-
-            // Start proxy in a task
+            // Run the proxy in the current task
             let command = args.command;
-            let proxy_handle = tokio::spawn(async move {
-                if let Err(e) = run_proxy(command, tap_tx).await {
-                    eprintln!("Proxy error: {}", e);
-                    process::exit(1);
-                }
-            });
-
-            // Wait for either Ctrl+C or proxy to finish
-            tokio::select! {
-                _ = ctrl_c => {
-                    eprintln!("\nReceived interrupt signal");
-                    proxy_handle.abort();
-                    parser_handle.abort();
-                    log_writer_handle.abort();
-                    server_handle.abort();
-                }
-                result = proxy_handle => {
-                    if let Err(e) = result {
-                        eprintln!("Proxy task error: {:?}", e);
-                        process::exit(1);
-                    }
-                    // Proxy finished, wait for parser and logger to finish
-                    parser_handle.abort();
-                    drop(log_tx_clone); // Close log channel to signal logger to stop
-                    let _ = log_writer_handle.await;
-                }
+            if let Err(e) = run_proxy(command, tap_tx).await {
+                eprintln!("Proxy error: {}", e);
+                process::exit(1);
             }
+
+            // If proxy exits, shut down parser/log/server
+            drop(log_tx_clone); // close log channel
+            let _ = parser_handle.abort();
+            let _ = log_writer_handle.abort();
+            let _ = server_handle.abort();
         }
     }
 }
-
