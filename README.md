@@ -1,22 +1,94 @@
-# Sentinel - MCP Interceptor
+# Sentinel - The MCP Interceptor  
+![MCP Proxy Demo](./assets/engram_demo.gif)
 
-A transparent proxy system for visualizing Model Context Protocol (MCP) communication between LLM agents and tools. See agent-tool interactions in real-time through a beautiful force-directed graph visualization.
+> **A drop-in, zero-config, unstoppable tap into Model Context Protocol traffic.**  
+> Watch your LLM agent *think*, *reach out to tools*, and *react to errors* - all rendered as a glowing, real-time, force-directed neural map.
 
-## Architecture
+Sentinel acts like a **transparent, fail-open sidecar** that sits between your LLM client and its MCP tools. It doesn’t change the traffic. It doesn’t interfere. It simply *sees everything*, interprets it, and broadcasts a structured event stream to a front-end visualization that feels more like a sci-fi UI than a dev tool.
+
+Whether you're building agents, debugging tool behavior, stress-testing long chains, or injecting observability into a black-box LLM workflow—**Sentinel makes the invisible visible.**
+
+---
+
+# 🚀 Why Sentinel Exists
+
+LLM agents call tools. Tools call back. Debugging that flow often feels like working blindfolded.
+
+Sentinel removes the blindfold.
+
+You’ll get:
+
+- Every MCP request in real-time  
+- Every response, including failures  
+- Latency by method  
+- Request → response correlation  
+- Fully redacted sensitive fields  
+- A gorgeous visualization that instantly shows what your agent is doing  
+
+It’s like Chrome DevTools…  
+…but for MCP agents.
+
+---
+
+# ✨ Core Features (Human Version)
+
+### **📡 Transparent MCP Sidecar**
+Drop Sentinel in front of any MCP server and instantly get deep visibility - no code changes, no rewrites, no patching.
+
+### **⚡ Zero-Copy, Sub-Millisecond Proxying**
+Sentinel intercepts JSON-RPC traffic without buffering or mangling payloads. True pass-through with <1ms overhead.
+
+### **🧠 Real-Time Interactive Graph**
+Every tool call becomes a glowing edge.  
+Every response updates the node’s stats.  
+Errors pulse red.  
+High-latency calls glow warm.  
+Your agent’s “thought graph” becomes alive.
+
+### **🔐 Built-in PII Redaction**
+API keys, tokens, emails, secrets - scrubbed *before* forwarding anything to the visualization layer.
+
+### **💥 Fail-Open Guarantee**
+If the UI crashes or the WebSocket drops:  
+**your MCP pipeline continues unfazed.**  
+Sentinel refuses to break your agent.
+
+### **🖥️ Claude Desktop Ready**
+One command patches Claude Desktop to route MCP requests through Sentinel while preserving backups.
+
+---
+
+# 🏗 Architecture
 
 **Pattern:** Transparent Sidecar (T-Tap)  
-**Philosophy:** Fail Open - visualization crashes must not break the agent  
-**Tech Stack:** Rust (Tokio) + React + React Flow + WebSockets
+**Philosophy:** Fail Open  
+**Tech Stack:** Rust (Tokio) • TypeScript • React • React Flow • WebSockets  
 
-## Features
+---
 
-- **Zero-copy proxying** with <1ms latency overhead
-- **Real-time visualization** of MCP protocol traffic
-- **JSON-RPC parsing** with request/response correlation
-- **Latency tracking** per request/response pair
-- **PII redaction** for security (API keys, emails, tokens)
-- **Claude Desktop integration** via simple install command
+# 💎 Full Feature List
 
+- Zero-copy pass-through of stdin/stdout MCP traffic  
+- Event bus via WebSocket for live dashboards  
+- Full JSON-RPC parsing (requests, responses, errors)  
+- Request correlation via session tracking  
+- Per-method statistics:  
+  - Call count  
+  - Success count  
+  - Error count  
+  - Inbound/outbound ratio  
+  - Latency  
+- Beautiful plasma-graded background  
+- Animated edges:  
+  - Green = success  
+  - Yellow = pending  
+  - Red = failure  
+- Clickable nodes for detailed inspection  
+- Claude Desktop config patcher + auto-backup  
+- Panic recovery & safe shutdown  
+- Debug log output in NDJSON for tooling integration  
+
+---
 ## Installation & Setup Guide
 
 ### Step 1: Install Prerequisites
