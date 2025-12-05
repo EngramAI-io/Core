@@ -30,7 +30,7 @@ It’s like Chrome DevTools…
 
 ---
 
-# ✨ Core Features (Human Version)
+# ✨ Core Features
 
 ### **📡 Transparent MCP Sidecar**
 Drop Sentinel in front of any MCP server and instantly get deep visibility - no code changes, no rewrites, no patching.
