@@ -8,6 +8,9 @@ on:
 permissions:
   contents: write
 
+env:
+  BIN_NAME: sentinel
+
 jobs:
   build:
     strategy:
@@ -16,8 +19,10 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+
           - os: macos-latest
             target: x86_64-apple-darwin
+
           - os: macos-latest
             target: aarch64-apple-darwin
 
@@ -27,7 +32,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install Rust
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -38,12 +43,16 @@ jobs:
       - name: Package binary
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
+
           mkdir -p dist
-          cp target/${{ matrix.target }}/release/sentinel dist/
-          tar -czf sentinel-${{ matrix.target }}.tar.gz -C dist sentinel
+          cp target/${{ matrix.target }}/release/${BIN_NAME} dist/
+          chmod +x dist/${BIN_NAME}
+
+          tar -czf ${BIN_NAME}-${{ matrix.target }}.tar.gz -C dist ${BIN_NAME}
 
       - name: Upload release artifact
         uses: softprops/action-gh-release@v1
         with:
-          files: sentinel-${{ matrix.target }}.tar.gz
+          files: |
+            sentinel-${{ matrix.target }}.tar.gz
