@@ -1,6 +1,6 @@
 set -e
 
-REPO="EngramAI-io/Core"
+REPO="EngramAI-io/sentinel"
 BINARY_NAME="sentinel"
 
 OS="$(uname -s)"

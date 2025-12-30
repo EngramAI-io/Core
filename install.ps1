@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$Repo = "EngramAI-io/Core"
+$Repo = "EngramAI-io/sentinel"
 $BinaryName = "sentinel.exe"
 $Target = "x86_64-pc-windows-msvc"
 $Archive = "sentinel-$Target.zip"
