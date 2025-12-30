@@ -253,7 +253,7 @@ Once Sentinel is installed, see the full usage guide for:
 - Troubleshooting
 
 👉 **Read the full guide:** 
-📄 [`docs/usage.md`](./docs/usage.md)
+📄 [`docs/USAGE.md`](./docs/USAGE.md)
 ---
 
 ## 📚 Manual Build from Source
