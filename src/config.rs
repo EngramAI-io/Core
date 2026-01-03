@@ -3,6 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 
 #[cfg(target_os = "windows")]
+#[allow(dead_code)]
 fn get_config_path() -> Option<PathBuf> {
     dirs::config_dir().map(|mut p| {
         p.push("Claude");
@@ -12,6 +13,7 @@ fn get_config_path() -> Option<PathBuf> {
 }
 
 #[cfg(not(target_os = "windows"))]
+#[allow(dead_code)]
 fn get_config_path() -> Option<PathBuf> {
     dirs::home_dir().map(|mut p| {
         p.push(".config");
@@ -21,6 +23,8 @@ fn get_config_path() -> Option<PathBuf> {
     })
 }
 
+// Planned feature: Automatic Claude Desktop MCP config installation
+#[allow(dead_code)]
 pub fn install(server_name: String) -> Result<(), Box<dyn std::error::Error>> {
     let config_path = get_config_path()
         .ok_or("Could not determine config directory")?;
@@ -91,6 +95,8 @@ pub fn install(server_name: String) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+// Planned feature: Restore Claude Desktop config from backup
+#[allow(dead_code)]
 pub fn restore_backup() -> Result<(), Box<dyn std::error::Error>> {
     let config_path = get_config_path()
         .ok_or("Could not determine config directory")?;

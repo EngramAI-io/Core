@@ -68,7 +68,7 @@ fn key_id(pk: &[u8; 32]) -> String {
 }
 
 #[derive(Clone)]
-struct DataKey([u8; 32]);
+pub(crate) struct DataKey([u8; 32]);
 
 impl Drop for DataKey {
     fn drop(&mut self) {

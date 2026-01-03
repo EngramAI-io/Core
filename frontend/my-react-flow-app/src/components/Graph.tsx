@@ -1,17 +1,17 @@
-import React, { useEffect, useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ReactFlow,
   Background,
+  BackgroundVariant,
   Controls,
   Handle,
   Position,
-  type Node,
+  ReactFlow,
   type Edge,
-  useNodesState,
-  useEdgesState,
-  type NodeTypes,
+  type Node,
   type NodeProps,
-  BackgroundVariant,
+  type NodeTypes,
+  useEdgesState,
+  useNodesState,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import type { McpLog } from '../types';
@@ -67,72 +67,130 @@ type ToolStats = {
 // ============================================
 
 const NEON_COLORS = {
-  green: '#22c55e',
-  greenGlow: 'rgba(34, 197, 94, 0.6)',
+  green: '#10b981',
+  greenGlow: 'rgba(16, 185, 129, 0.4)',
   red: '#ef4444',
-  redGlow: 'rgba(239, 68, 68, 0.6)',
-  purple: '#8b5cf6',
-  purpleGlow: 'rgba(139, 92, 246, 0.6)',
-  cyan: '#06b6d4',
-  yellow: '#eab308',
+  redGlow: 'rgba(239, 68, 68, 0.4)',
+  purple: '#3b82f6',
+  purpleGlow: 'rgba(59, 130, 246, 0.4)',
+  cyan: '#38bdf8',
+  yellow: '#f59e0b',
   orange: '#f97316',
+  blue: '#3b82f6',
+  slate: '#94a3b8',
 };
 
 const BG_COLORS = {
-  primary: '#0d1117',
-  secondary: '#161b22',
-  card: '#1c2128',
+  primary: '#0f1419',
+  secondary: '#151b23',
+  tertiary: '#1c242d',
+  card: '#171e26',
 };
 
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
 
-function getClusterInfo(method: string): { id: string; label: string; color: string; glowColor: string } {
+function getClusterInfo(method: string): {
+  id: string;
+  label: string;
+  color: string;
+  glowColor: string;
+} {
   if (method.startsWith('postgres.') || method.startsWith('redis.')) {
-    return { id: 'db', label: 'Databases', color: 'rgba(6, 182, 212, 0.15)', glowColor: NEON_COLORS.cyan };
+    return {
+      id: 'db',
+      label: 'Databases',
+      color: 'rgba(34, 211, 238, 0.15)',
+      glowColor: NEON_COLORS.cyan,
+    };
   }
   if (method.startsWith('github.')) {
-    return { id: 'github', label: 'GitHub', color: 'rgba(139, 92, 246, 0.15)', glowColor: NEON_COLORS.purple };
+    return {
+      id: 'github',
+      label: 'GitHub',
+      color: 'rgba(96, 165, 250, 0.16)',
+      glowColor: NEON_COLORS.blue,
+    };
   }
   if (method.startsWith('slack.')) {
-    return { id: 'slack', label: 'Slack', color: 'rgba(34, 197, 94, 0.12)', glowColor: NEON_COLORS.green };
+    return {
+      id: 'slack',
+      label: 'Slack',
+      color: 'rgba(74, 222, 128, 0.12)',
+      glowColor: NEON_COLORS.green,
+    };
   }
   if (method.startsWith('kubernetes.')) {
-    return { id: 'k8s', label: 'Kubernetes', color: 'rgba(59, 130, 246, 0.15)', glowColor: '#3b82f6' };
+    return {
+      id: 'k8s',
+      label: 'Kubernetes',
+      color: 'rgba(59, 130, 246, 0.16)',
+      glowColor: '#3b82f6',
+    };
   }
   if (method.startsWith('llm.')) {
-    return { id: 'llm', label: 'LLM Tools', color: 'rgba(234, 179, 8, 0.15)', glowColor: NEON_COLORS.yellow };
+    return {
+      id: 'llm',
+      label: 'LLM Tools',
+      color: 'rgba(245, 158, 11, 0.15)',
+      glowColor: NEON_COLORS.yellow,
+    };
   }
   if (method.startsWith('fs.')) {
-    return { id: 'fs', label: 'Filesystem', color: 'rgba(148, 163, 184, 0.12)', glowColor: '#94a3b8' };
+    return {
+      id: 'fs',
+      label: 'Filesystem',
+      color: 'rgba(148, 163, 184, 0.12)',
+      glowColor: NEON_COLORS.slate,
+    };
   }
   if (method.startsWith('browser.')) {
-    return { id: 'browser', label: 'Browser', color: 'rgba(249, 115, 22, 0.15)', glowColor: NEON_COLORS.orange };
+    return {
+      id: 'browser',
+      label: 'Browser',
+      color: 'rgba(249, 115, 22, 0.15)',
+      glowColor: NEON_COLORS.orange,
+    };
   }
   if (method.startsWith('billing.')) {
-    return { id: 'billing', label: 'Billing', color: 'rgba(236, 72, 153, 0.15)', glowColor: '#ec4899' };
+    return {
+      id: 'billing',
+      label: 'Billing',
+      color: 'rgba(236, 72, 153, 0.15)',
+      glowColor: '#ec4899',
+    };
   }
   if (method.startsWith('monitoring.')) {
-    return { id: 'monitoring', label: 'Monitoring', color: 'rgba(20, 184, 166, 0.15)', glowColor: '#14b8a6' };
+    return {
+      id: 'monitoring',
+      label: 'Monitoring',
+      color: 'rgba(20, 184, 166, 0.15)',
+      glowColor: '#14b8a6',
+    };
   }
-  return { id: 'other', label: 'Other Tools', color: 'rgba(107, 114, 128, 0.12)', glowColor: '#6b7280' };
+  return {
+    id: 'other',
+    label: 'Other Tools',
+    color: 'rgba(107, 114, 128, 0.12)',
+    glowColor: '#6b7280',
+  };
 }
 
 function getToolIcon(method?: string): string {
-  if (!method) return '🧩';
-  if (method.startsWith('github.')) return '🐙';
-  if (method.startsWith('slack.')) return '💬';
-  if (method.startsWith('postgres.')) return '🐘';
-  if (method.startsWith('redis.')) return '🔥';
-  if (method.startsWith('kubernetes.')) return '☸️';
-  if (method.startsWith('vector.')) return '🧠';
-  if (method.startsWith('llm.')) return '🤖';
-  if (method.startsWith('browser.')) return '🌐';
-  if (method.startsWith('fs.')) return '📁';
-  if (method.startsWith('billing.')) return '💳';
-  if (method.startsWith('monitoring.')) return '📈';
-  return '🧩';
+  if (!method) return 'TL';
+  if (method.startsWith('github.')) return 'GH';
+  if (method.startsWith('slack.')) return 'SL';
+  if (method.startsWith('postgres.')) return 'PG';
+  if (method.startsWith('redis.')) return 'RD';
+  if (method.startsWith('kubernetes.')) return 'K8';
+  if (method.startsWith('vector.')) return 'VX';
+  if (method.startsWith('llm.')) return 'LM';
+  if (method.startsWith('browser.')) return 'WB';
+  if (method.startsWith('fs.')) return 'FS';
+  if (method.startsWith('billing.')) return 'BL';
+  if (method.startsWith('monitoring.')) return 'MN';
+  return 'TL';
 }
 
 // ============================================
@@ -142,81 +200,37 @@ function getToolIcon(method?: string): string {
 const AgentNode: React.FC<NodeProps> = (props) => {
   const data = props.data as CustomNodeData;
 
+  const handleStyle = {
+    background: NEON_COLORS.purple,
+    width: 10,
+    height: 10,
+    borderRadius: '50%',
+    border: '2px solid white',
+  };
+
   return (
     <div
       style={{
         position: 'relative',
-        padding: '16px 32px',
-        background: `linear-gradient(135deg, ${NEON_COLORS.purple} 0%, #7c3aed 100%)`,
+        padding: '18px 36px',
+        background: `linear-gradient(135deg, ${NEON_COLORS.purple} 0%, #60a5fa 100%)`,
         color: 'white',
         borderRadius: '999px',
-        fontSize: '20px',
-        fontWeight: 700,
-        letterSpacing: '0.5px',
-        border: `2px solid rgba(255, 255, 255, 0.3)`,
+        fontFamily: 'Poppins, sans-serif',
+        fontSize: '18px',
+        fontWeight: 600,
+        letterSpacing: '-0.02em',
+        border: '2px solid rgba(255, 255, 255, 0.25)',
         boxShadow: `
-          0 0 20px ${NEON_COLORS.purpleGlow},
-          0 0 40px ${NEON_COLORS.purpleGlow},
-          0 0 60px rgba(139, 92, 246, 0.3),
-          inset 0 0 20px rgba(255, 255, 255, 0.1)
+          0 12px 24px rgba(0, 0, 0, 0.4),
+          inset 0 1px 0 rgba(255, 255, 255, 0.2)
         `,
-        animation: 'agent-pulse 3s ease-in-out infinite',
-        textShadow: '0 0 10px rgba(255, 255, 255, 0.5)',
       }}
     >
-      <Handle
-        id="left"
-        type="source"
-        position={Position.Left}
-        style={{
-          background: NEON_COLORS.purple,
-          width: 10,
-          height: 10,
-          borderRadius: '50%',
-          border: '2px solid white',
-          boxShadow: `0 0 8px ${NEON_COLORS.purple}`,
-        }}
-      />
-      <Handle
-        id="right"
-        type="source"
-        position={Position.Right}
-        style={{
-          background: NEON_COLORS.purple,
-          width: 10,
-          height: 10,
-          borderRadius: '50%',
-          border: '2px solid white',
-          boxShadow: `0 0 8px ${NEON_COLORS.purple}`,
-        }}
-      />
-      <Handle
-        id="top"
-        type="source"
-        position={Position.Top}
-        style={{
-          background: NEON_COLORS.purple,
-          width: 10,
-          height: 10,
-          borderRadius: '50%',
-          border: '2px solid white',
-          boxShadow: `0 0 8px ${NEON_COLORS.purple}`,
-        }}
-      />
-      <Handle
-        id="bottom"
-        type="source"
-        position={Position.Bottom}
-        style={{
-          background: NEON_COLORS.purple,
-          width: 10,
-          height: 10,
-          borderRadius: '50%',
-          border: '2px solid white',
-          boxShadow: `0 0 8px ${NEON_COLORS.purple}`,
-        }}
-      />
-
+      <Handle id="left" type="source" position={Position.Left} style={handleStyle} />
+      <Handle id="right" type="source" position={Position.Right} style={handleStyle} />
+      <Handle id="top" type="source" position={Position.Top} style={handleStyle} />
+      <Handle id="bottom" type="source" position={Position.Bottom} style={handleStyle} />
       {data.label}
     </div>
   );
@@ -227,7 +241,7 @@ const ToolNode: React.FC<NodeProps> = (props) => {
 
   const isError = data.status === 'error';
   const neonColor = isError ? NEON_COLORS.red : NEON_COLORS.green;
-  const neonGlow = isError ? NEON_COLORS.redGlow : NEON_COLORS.greenGlow;
+  const glowColor = isError ? NEON_COLORS.redGlow : NEON_COLORS.greenGlow;
   const icon = getToolIcon(data.method);
 
   const isSelected =
@@ -235,110 +249,73 @@ const ToolNode: React.FC<NodeProps> = (props) => {
     data.selectedId != null &&
     data.requestId.toString() === data.selectedId;
 
-  const latencyLabel = typeof data.avgLatencyMs === 'number' ? `${Math.round(data.avgLatencyMs)}ms` : '—';
+  const latencyLabel =
+    typeof data.avgLatencyMs === 'number' ? `${Math.round(data.avgLatencyMs)}ms` : '--';
 
   const boxShadow = isSelected
-    ? `
-        0 0 20px ${neonColor},
-        0 0 40px ${neonColor},
-        0 0 60px ${neonGlow},
-        0 0 80px ${neonGlow},
-        inset 0 0 20px rgba(255, 255, 255, 0.15)
-      `
-    : `
-        0 0 15px ${neonGlow},
-        0 0 30px ${neonGlow},
-        inset 0 0 15px rgba(255, 255, 255, 0.1)
-      `;
+    ? `0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 2px ${neonColor}, 0 0 20px ${glowColor}`
+    : `0 4px 16px rgba(0, 0, 0, 0.35)`;
+
+  const handleStyle = {
+    background: neonColor,
+    width: 8,
+    height: 8,
+    borderRadius: '50%',
+    border: '2px solid white',
+    boxShadow: `0 0 6px ${neonColor}`,
+  };
 
   return (
     <div
       style={{
         position: 'relative',
-        padding: '12px 20px',
+        padding: '14px 18px',
         background: BG_COLORS.card,
         color: 'white',
         borderRadius: '12px',
+        fontFamily: 'Poppins, sans-serif',
         fontSize: '13px',
-        fontWeight: 600,
-        border: `2px solid ${neonColor}`,
+        fontWeight: 500,
+        border: `1px solid ${neonColor}`,
         boxShadow,
         transition: 'all 0.2s ease',
         transform: isSelected ? 'scale(1.05)' : 'scale(1)',
         display: 'flex',
         alignItems: 'center',
         gap: 12,
-        minWidth: 160,
+        minWidth: 180,
       }}
     >
-      <Handle
-        id="left"
-        type="target"
-        position={Position.Left}
-        style={{
-          background: neonColor,
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          border: '2px solid white',
-          boxShadow: `0 0 6px ${neonColor}`,
-        }}
-      />
-      <Handle
-        id="right"
-        type="target"
-        position={Position.Right}
-        style={{
-          background: neonColor,
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          border: '2px solid white',
-          boxShadow: `0 0 6px ${neonColor}`,
-        }}
-      />
-      <Handle
-        id="top"
-        type="target"
-        position={Position.Top}
-        style={{
-          background: neonColor,
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          border: '2px solid white',
-          boxShadow: `0 0 6px ${neonColor}`,
-        }}
-      />
-      <Handle
-        id="bottom"
-        type="target"
-        position={Position.Bottom}
-        style={{
-          background: neonColor,
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          border: '2px solid white',
-          boxShadow: `0 0 6px ${neonColor}`,
-        }}
-      />
+      <Handle id="left" type="target" position={Position.Left} style={handleStyle} />
+      <Handle id="right" type="target" position={Position.Right} style={handleStyle} />
+      <Handle id="top" type="target" position={Position.Top} style={handleStyle} />
+      <Handle id="bottom" type="target" position={Position.Bottom} style={handleStyle} />
 
       <div
         style={{
-          fontSize: 24,
-          filter: `drop-shadow(0 0 4px ${neonColor})`,
+          minWidth: 36,
+          height: 36,
+          borderRadius: 8,
+          background: `rgba(${isError ? '239, 68, 68' : '16, 185, 129'}, 0.15)`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 11,
+          letterSpacing: '0.05em',
+          fontWeight: 700,
+          color: neonColor,
         }}
       >
         {icon}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         <div
           style={{
-            color: neonColor,
-            textShadow: `0 0 8px ${neonGlow}`,
-            fontWeight: 700,
+            color: '#f1f5f9',
+            fontWeight: 600,
+            fontSize: '14px',
+            letterSpacing: '-0.01em',
           }}
         >
           {data.label}
@@ -346,9 +323,9 @@ const ToolNode: React.FC<NodeProps> = (props) => {
         {data.method && (
           <div
             style={{
-              fontSize: '10px',
-              color: 'rgba(255, 255, 255, 0.6)',
-              fontFamily: 'monospace',
+              fontSize: '11px',
+              color: '#64748b',
+              fontFamily: '"JetBrains Mono", monospace',
             }}
           >
             {data.method}
@@ -356,20 +333,24 @@ const ToolNode: React.FC<NodeProps> = (props) => {
         )}
         <div
           style={{
-            fontSize: '10px',
-            color: 'rgba(255, 255, 255, 0.5)',
+            fontSize: '11px',
+            color: '#94a3b8',
             display: 'flex',
-            gap: 8,
+            alignItems: 'center',
+            gap: 10,
             marginTop: 2,
           }}
         >
-          <span>
-            <span style={{ color: neonColor }}>{data.calls ?? 0}</span> calls
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ color: neonColor, fontWeight: 600 }}>{data.calls ?? 0}</span>
+            <span>calls</span>
           </span>
-          <span>
-            <span style={{ color: '#06b6d4' }}>{latencyLabel}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ color: NEON_COLORS.cyan, fontWeight: 600 }}>{latencyLabel}</span>
           </span>
-          {typeof data.errors === 'number' && data.errors > 0 && <span style={{ color: NEON_COLORS.red }}>{data.errors} err</span>}
+          {typeof data.errors === 'number' && data.errors > 0 && (
+            <span style={{ color: NEON_COLORS.red, fontWeight: 600 }}>{data.errors} err</span>
+          )}
         </div>
       </div>
     </div>
@@ -383,12 +364,12 @@ const ClusterNode: React.FC<NodeProps> = (props) => {
     <div
       style={{
         position: 'relative',
-        width: 300,
-        height: 300,
+        width: 320,
+        height: 320,
         borderRadius: '50%',
-        background: `radial-gradient(circle, ${data.color} 0%, transparent 70%)`,
-        filter: 'blur(30px)',
-        opacity: 0.8,
+        background: `radial-gradient(circle, ${data.color} 0%, transparent 65%)`,
+        filter: 'blur(35px)',
+        opacity: 0.5,
         pointerEvents: 'none',
       }}
     >
@@ -398,12 +379,12 @@ const ClusterNode: React.FC<NodeProps> = (props) => {
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
+          fontFamily: 'Poppins, sans-serif',
           fontSize: 11,
           fontWeight: 600,
           color: data.glowColor,
           textTransform: 'uppercase',
-          letterSpacing: 1,
-          textShadow: `0 0 10px ${data.glowColor}`,
+          letterSpacing: '0.1em',
           whiteSpace: 'nowrap',
           filter: 'blur(0)',
         }}
@@ -492,7 +473,9 @@ export default function Graph({ events, onNodeClick, selectedNode }: GraphProps)
       if (e.request_id == null) continue;
 
       const method =
-        typeof e.method === 'string' && e.method.length > 0 ? e.method : requestMethodById.get(e.request_id);
+        typeof e.method === 'string' && e.method.length > 0
+          ? e.method
+          : requestMethodById.get(e.request_id);
 
       if (!method) continue;
 
@@ -532,7 +515,10 @@ export default function Graph({ events, onNodeClick, selectedNode }: GraphProps)
   }, [events, requestMethodById]);
 
   // A stable key for when the TOOL SET changes (topology), not when stats change.
-  const toolSetKey = useMemo(() => Array.from(statsMap.keys()).sort().join('|'), [statsMap]);
+  const toolSetKey = useMemo(
+    () => Array.from(statsMap.keys()).sort().join('|'),
+    [statsMap]
+  );
 
   // =========================
   // TOPOLOGY BUILD (NO STATS)
@@ -618,10 +604,16 @@ export default function Graph({ events, onNodeClick, selectedNode }: GraphProps)
       } else if (normalizedAngle >= Math.PI / 4 && normalizedAngle < (3 * Math.PI) / 4) {
         agentHandle = 'bottom';
         toolHandle = 'top';
-      } else if (normalizedAngle >= (3 * Math.PI) / 4 && normalizedAngle < (5 * Math.PI) / 4) {
+      } else if (
+        normalizedAngle >= (3 * Math.PI) / 4 &&
+        normalizedAngle < (5 * Math.PI) / 4
+      ) {
         agentHandle = 'left';
         toolHandle = 'right';
-      } else if (normalizedAngle >= (5 * Math.PI) / 4 && normalizedAngle < (7 * Math.PI) / 4) {
+      } else if (
+        normalizedAngle >= (5 * Math.PI) / 4 &&
+        normalizedAngle < (7 * Math.PI) / 4
+      ) {
         agentHandle = 'top';
         toolHandle = 'bottom';
       } else {
@@ -646,32 +638,32 @@ export default function Graph({ events, onNodeClick, selectedNode }: GraphProps)
       });
     });
 
-    // Cluster background nodes
-    clusterMap.forEach((cluster) => {
-      if (cluster.count === 0) return;
-      const cx = cluster.xSum / cluster.count;
-      const cy = cluster.ySum / cluster.count;
+    // Cluster background nodes - removed to eliminate background circles
+    // clusterMap.forEach((cluster) => {
+    //   if (cluster.count === 0) return;
+    //   const cx = cluster.xSum / cluster.count;
+    //   const cy = cluster.ySum / cluster.count;
 
-      const clusterNode: Node = {
-        id: `cluster-${cluster.id}`,
-        type: 'cluster',
-        position: { x: cx - 150, y: cy - 150 },
-        data: {
-          label: cluster.label,
-          color: cluster.color,
-          glowColor: cluster.glowColor,
-        } as ClusterNodeData,
-        draggable: false,
-        selectable: false,
-        style: { zIndex: 1 },
-      };
+    //   const clusterNode: Node = {
+    //     id: `cluster-${cluster.id}`,
+    //     type: 'cluster',
+    //     position: { x: cx - 150, y: cy - 150 },
+    //     data: {
+    //       label: cluster.label,
+    //       color: cluster.color,
+    //       glowColor: cluster.glowColor,
+    //     } as ClusterNodeData,
+    //     draggable: false,
+    //     selectable: false,
+    //     style: { zIndex: 1 },
+    //   };
 
-      nodeMap.set(clusterNode.id, clusterNode);
-    });
+    //   nodeMap.set(clusterNode.id, clusterNode);
+    // });
 
     setNodes(Array.from(nodeMap.values()));
     setEdges(edgeList);
-  }, [toolSetKey, selectedNode]);
+  }, [toolSetKey, selectedNode, setEdges, setNodes]);
 
   // =========================================
   // STATS UPDATE (NO TOPOLOGY REBUILD)
@@ -684,7 +676,10 @@ export default function Graph({ events, onNodeClick, selectedNode }: GraphProps)
       const lastInboundForMethod = [...events].reverse().find((e) => {
         if (e.direction !== StreamDirection.Inbound) return false;
         if (e.request_id == null) return false;
-        const m = typeof e.method === 'string' && e.method.length > 0 ? e.method : requestMethodById.get(e.request_id);
+        const m =
+          typeof e.method === 'string' && e.method.length > 0
+            ? e.method
+            : requestMethodById.get(e.request_id);
         return m === method;
       });
 
@@ -759,7 +754,7 @@ export default function Graph({ events, onNodeClick, selectedNode }: GraphProps)
         };
       })
     );
-  }, [events, requestMethodById, selectedNode, setNodes, setEdges, statsMap, toolHealthMap]);
+  }, [events, requestMethodById, selectedNode, setEdges, setNodes, statsMap, toolHealthMap]);
 
   const onNodeClickHandler = useCallback(
     (_: React.MouseEvent, node: Node) => {
@@ -788,12 +783,18 @@ export default function Graph({ events, onNodeClick, selectedNode }: GraphProps)
         onInit={() => setDidFit(true)}
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="rgba(255, 255, 255, 0.05)" />
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={24}
+          size={1}
+          color="rgba(255, 255, 255, 0.04)"
+        />
         <Controls
           style={{
             background: BG_COLORS.secondary,
             borderRadius: 8,
-            border: '1px solid #30363d',
+            border: '1px solid #1e293b',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
           }}
         />
       </ReactFlow>

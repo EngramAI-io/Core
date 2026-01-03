@@ -8,15 +8,20 @@ pub struct Session {
     pub trace_id: String,
 }
 
+// Planned feature: Request tracking with timing
+#[allow(dead_code)]
 pub struct SessionState {
     pending_requests: HashMap<u64, Instant>,
 }
 
-
+// Planned feature: Distributed tracing support
+#[allow(dead_code)]
 pub struct SessionTracker {
     pending: HashMap<u64, (u64, String)>, // request_id -> (timestamp, span_id)
 }
 
+
+#[allow(dead_code)]
 impl SessionTracker {
     pub fn new() -> Self {
         Self {
@@ -42,6 +47,8 @@ impl SessionTracker {
 
 }
 
+
+#[allow(dead_code)]
 impl SessionState {
     pub fn new() -> Self {
         Self {
